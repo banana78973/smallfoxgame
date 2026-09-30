@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>青丘幻夢：白狐的尋仙綺禮</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Serif TC', serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #e2e8f0;
+        }
+
+        .glow-text { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(167, 139, 250, 0.3); }
+        .glow-gold { text-shadow: 0 0 10px rgba(250, 204, 21, 0.5), 0 0 20px rgba(250, 204, 21, 0.3); }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-choice {
+            transition: all 0.4s ease;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-choice:hover {
+            border-color: rgba(212, 175, 55, 0.8);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2) inset, 0 0 15px rgba(212, 175, 55, 0.4);
+            transform: translateY(-2px);
+            color: #fef08a;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating { animation: float 6s ease-in-out infinite; }
+
+        @keyframes pulse-glow {
+            0% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3)); }
+            50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); }
+            100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3)); }
+        }
+        .svg-glow { animation: pulse-glow 4s ease-in-out infinite; }
+
+        .scene-transition { transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out; }
+        .fade-out { opacity: 0; transform: scale(0.98); pointer-events: none; }
+        .fade-in { opacity: 1; transform: scale(1); }
+
+        /* 右上角物品欄彈出動畫 */
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .item-slot {
+            animation: slideInRight 0.5s ease-out forwards;
+            width: 48px; height: 48px;
+        }
+
+        /* Toast 提示動畫 */
+        #toast {
+            transition: opacity 0.5s, transform 0.5s;
+            opacity: 0; transform: translateY(-20px) translateX(-50%);
+            pointer-events: none;
+            position: fixed; top: 20px; left: 50%; z-index: 50;
+        }
+        #toast.show { opacity: 1; transform: translateY(0) translateX(-50%); }
+
+        /* 影片背景層 */
+        .video-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; z-index: 0;
+            background: #000;
+        }
+
+        /* 修復：Canvas 必須作為背景層，否則會佔用正常排版高度，導致遊戲 UI 被推到畫面外 */
+        #game-screen {
+            background: #000;
+            overflow: hidden;
+        }
+        #bg-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- BGM -->
+    <audio id="audio-bgm" loop preload="auto">
+        <source src="https://raw.githubusercontent.com/banana78973/audio-files/main/%E7%87%88%E4%B8%8B%E7%8B%90%E5%BD%B1.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- 影片層 (首頁與過場) -->
+    <div id="video-container" class="absolute inset-0 w-full h-full z-0 transition-opacity duration-1000 bg-black">
+        <!-- 封面影片 -->
+        <video id="video-start" autoplay loop muted playsinline crossorigin="anonymous" class="video-bg opacity-100">
+            <source src="https://cdn.jsdelivr.net/gh/banana78973/smallfoxgame@main/%E9%96%8B%E5%A7%8B.mp4" type="video/mp4">
+            <source src="https://raw.githubusercontent.com/banana78973/smallfoxgame/main/%E9%96%8B%E5%A7%8B.mp4" type="video/mp4">
+        </video>
+        <!-- 奔跑影片 -->
+        <video id="video-run" muted playsinline crossorigin="anonymous" preload="auto" class="video-bg opacity-0 hidden transition-opacity duration-1000">
+            <source src="https://cdn.jsdelivr.net/gh/banana78973/smallfoxgame@main/%E8%B5%B7%E8%B7%91.mp4" type="video/mp4">
+            <source src="https://raw.githubusercontent.com/banana78973/smallfoxgame/main/%E8%B5%B7%E8%B7%91.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- 音樂開關 -->
+    <button id="btn-music" onclick="toggleMusic()" class="fixed top-4 left-4 z-50 glass-panel p-3 rounded-full hidden hover:bg-white/10 transition-colors">
+        <span id="music-icon" class="text-xl">🔇</span>
+    </button>
+
+    <!-- 跳過動畫按鈕 -->
+    <button id="btn-skip" onclick="skipIntro()" class="fixed bottom-4 right-4 z-50 text-white/50 hover:text-white text-sm tracking-wider hidden transition-colors bg-black/40 px-3 py-1 rounded">
+        [ 略過動畫 ]
+    </button>
+
+    <!-- 開場 UI 覆蓋層 -->
+    <div id="start-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-start pt-16 md:pt-24 bg-black/30 transition-opacity duration-1000">
+        <!-- 旋轉法陣 SVG (裝飾) -->
+        <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+            <svg viewBox="0 0 200 200" class="w-[800px] h-[800px] animate-[spin_60s_linear_infinite]" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.5">
+                <circle cx="100" cy="100" r="90" stroke-dasharray="2 4"/>
+                <circle cx="100" cy="100" r="70"/>
+                <path d="M100 10 L100 190 M10 100 L190 100" />
+                <path d="M36 36 L164 164 M36 164 L164 36" />
+            </svg>
+        </div>
+        
+        <h1 class="text-5xl md:text-7xl font-bold text-white glow-text tracking-widest mb-12 relative z-10">青丘幻夢</h1>
+        <button onclick="startGame()" class="glass-panel px-12 py-4 rounded-full text-xl text-yellow-100 font-bold tracking-widest hover:bg-white/10 border-white/40 transition-all relative z-10 glow-gold">
+            開始歷練
+        </button>
+    </div>
+
+    <!-- 沉浸式字幕層 -->
+    <div id="intro-subtitles" class="absolute inset-0 z-30 flex items-center justify-center p-8 text-center bg-transparent transition-colors duration-1000 hidden pointer-events-none">
+        <p id="subtitle-text" class="text-xl md:text-3xl text-white tracking-widest leading-loose opacity-0 transition-opacity duration-1000 drop-shadow-lg"></p>
+    </div>
+
+    <div id="game-screen" class="fixed inset-0 w-full h-full hidden opacity-0 transition-opacity duration-1000 z-10">
+        <!-- Canvas 背景 -->
+        <canvas id="bg-canvas"></canvas>
+
+        <!-- 遊戲內沉浸式字幕與過場影片容器 -->
+        <div id="game-subtitles" class="absolute inset-0 z-30 flex flex-col items-center justify-center p-4 md:p-8 text-center bg-transparent transition-colors duration-1000 hidden pointer-events-none">
+            
+            <!-- 啟程過場影片 (縮小並帶有圓角發光陰影) -->
+            <video id="video-departure" loop muted playsinline crossorigin="anonymous" class="w-full max-w-sm md:max-w-2xl rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.3)] border border-white/20 mb-6 hidden opacity-0 transition-opacity duration-1000">
+                <source src="https://cdn.jsdelivr.net/gh/banana78973/smallfoxgame@main/%E5%95%9F%E7%A8%8B.mp4" type="video/mp4">
+                <source src="https://raw.githubusercontent.com/banana78973/smallfoxgame/main/%E5%95%9F%E7%A8%8B.mp4" type="video/mp4">
+            </video>
+
+            <p id="game-subtitle-text" class="text-lg md:text-2xl text-white tracking-widest leading-loose opacity-0 transition-opacity duration-1000 drop-shadow-lg max-w-4xl"></p>
+        </div>
+
+        <!-- 道具提示 Toast -->
+        <div id="toast" class="glass-panel px-6 py-3 rounded-full text-yellow-100 font-bold tracking-widest border-white/40 flex items-center gap-3">
+            <span class="text-2xl">✨</span> <span id="toast-msg">獲得道具</span>
+        </div>
+
+        <!-- 遊戲互動區塊 -->
+        <div class="relative w-full h-full flex flex-col items-center justify-center p-6 z-10">
+            <!-- 右上角物品欄 -->
+            <div class="absolute top-6 right-6 flex gap-2" id="inventory-panel"></div>
+
+            <div id="app-container" class="w-full max-w-3xl flex flex-col items-center scene-transition fade-out mt-12">
+                <!-- 動態 SVG/影像 視覺區塊 -->
+                <div id="visual-container" class="mb-8 flex items-center justify-center floating svg-glow text-white/80"></div>
+
+                <!-- 劇本與文字區塊 -->
+                <div class="glass-panel w-full p-6 md:p-10 rounded-2xl text-center mb-8 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-8 h-8 border-t border-l border-white/30 rounded-tl-xl m-4"></div>
+                    <div class="absolute top-0 right-0 w-8 h-8 border-t border-r border-white/30 rounded-tr-xl m-4"></div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-white/30 rounded-bl-xl m-4"></div>
+                    <div class="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-white/30 rounded-br-xl m-4"></div>
+                    
+                    <h1 id="story-title" class="text-2xl md:text-3xl font-bold mb-6 text-yellow-100 glow-gold tracking-widest"></h1>
+                    <p id="story-text" class="text-base md:text-lg leading-loose text-slate-200 tracking-wide"></p>
+                </div>
+
+                <!-- 選項按鈕區塊 -->
+                <div id="choices-container" class="w-full flex flex-col gap-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const els = {
+            videoStart: document.getElementById('video-start'),
+            videoRun: document.getElementById('video-run'),
+            videoDeparture: document.getElementById('video-departure'),
+            videoContainer: document.getElementById('video-container'),
+            startScreen: document.getElementById('start-screen'),
+            subtitles: document.getElementById('intro-subtitles'),
+            subText: document.getElementById('subtitle-text'),
+            gameScreen: document.getElementById('game-screen'),
+            btnSkip: document.getElementById('btn-skip'),
+            btnMusic: document.getElementById('btn-music'),
+            musicIcon: document.getElementById('music-icon'),
+            audioBgm: document.getElementById('audio-bgm'),
+            
+            app: document.getElementById('app-container'),
+            title: document.getElementById('story-title'),
+            text: document.getElementById('story-text'),
+            visual: document.getElementById('visual-container'),
+            choices: document.getElementById('choices-container'),
+            inventory: document.getElementById('inventory-panel'),
+            toast: document.getElementById('toast'),
+            toastMsg: document.getElementById('toast-msg')
+        };
+
+        let isIntroSkipped = false; // 保留變數，避免舊邏輯引用失效；分段略過改由 introStage 控制
+        let isMusicPlaying = false;
+        let isGameStarted = false;
+
+        let gameState = {
+            scores: { A: 0, B: 0, C: 0 },
+            inventory: [],
+            canvasTheme: 'awakening' 
+        };
+
+        // 分段開場狀態：idle -> firstSubtitles -> runVideo -> secondSubtitles -> done
+        let introStage = 'idle';
+        let skipTimers = [];
+        let hasEnteredGame = false;
+        let sceneRenderTimer = null;
+
+        function wait(ms) {
+            return new Promise(resolve => {
+                const handle = {
+                    id: null,
+                    resolve: () => resolve(true)
+                };
+
+                handle.id = setTimeout(() => {
+                    skipTimers = skipTimers.filter(item => item !== handle);
+                    resolve(false);
+                }, ms);
+
+                skipTimers.push(handle);
+            });
+        }
+
+        function abortIntro() {
+            skipTimers.forEach(handle => {
+                clearTimeout(handle.id);
+                handle.resolve();
+            });
+            skipTimers = [];
+
+            els.videoRun.onended = null;
+            els.videoRun.onerror = null;
+        }
+
+        function hideIntroSubtitleText() {
+            els.subText.style.opacity = '0';
+            els.subText.innerHTML = '';
+        }
+
+        function setupIntroSubtitleLayer({ darkBackdrop = false } = {}) {
+            els.subtitles.classList.remove('hidden', 'bg-black');
+            els.subtitles.classList.add('bg-transparent');
+            if (darkBackdrop) {
+                els.subtitles.classList.remove('bg-transparent');
+                els.subtitles.classList.add('bg-black');
+            }
+        }
+
+        function stopIntroVideos({ reset = false } = {}) {
+            [els.videoStart, els.videoRun, els.videoDeparture].forEach(video => {
+                if (!video) return;
+                try {
+                    video.pause();
+                    if (reset) video.currentTime = 0;
+                    video.style.opacity = '0';
+                } catch (e) {}
+            });
+        }
+
+        function safePlayVideo(video, label = '影片') {
+            if (!video) return Promise.resolve(false);
+
+            try {
+                video.muted = true;
+                const playPromise = video.play();
+
+                if (playPromise && typeof playPromise.then === 'function') {
+                    return playPromise
+                        .then(() => true)
+                        .catch(e => {
+                            console.log(`${label}播放失敗`, e);
+                            return false;
+                        });
+                }
+
+                return Promise.resolve(true);
+            } catch (e) {
+                console.log(`${label}播放失敗`, e);
+                return Promise.resolve(false);
+            }
+        }
+
+        function waitForVideoEnd(video, timeoutMs = 8000) {
+            return new Promise(resolve => {
+                let done = false;
+
+                const handle = {
+                    id: null,
+                    resolve: () => finish(true)
+                };
+
+                const finish = (aborted = false) => {
+                    if (done) return;
+                    done = true;
+
+                    if (video) {
+                        video.removeEventListener('ended', onEnded);
+                        video.removeEventListener('error', onError);
+                    }
+
+                    clearTimeout(handle.id);
+                    skipTimers = skipTimers.filter(item => item !== handle);
+                    resolve(aborted);
+                };
+
+                const onEnded = () => finish(false);
+                const onError = () => finish(false);
+
+                if (video) {
+                    video.addEventListener('ended', onEnded, { once: true });
+                    video.addEventListener('error', onError, { once: true });
+                }
+
+                handle.id = setTimeout(() => finish(false), timeoutMs);
+                skipTimers.push(handle);
+            });
+        }
+
+        // 前段影音防呆：任何影片載入失敗都不要阻斷測驗流程
+        [els.videoStart, els.videoRun, els.videoDeparture].forEach(video => {
+            if (!video) return;
+            video.addEventListener('error', () => {
+                console.log('影片載入失敗：', video.id);
+            });
+        });
+
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                els.audioBgm.pause();
+                els.musicIcon.innerText = '🔇';
+            } else {
+                els.audioBgm.play().catch(e => console.log("音樂播放失敗", e));
+                els.musicIcon.innerText = '🎵';
+            }
+            isMusicPlaying = !isMusicPlaying;
+        }
+
+        async function startGame() {
+            if (isGameStarted) return;
+            isGameStarted = true;
+            introStage = 'firstSubtitles';
+
+            // 預先載入影片。不要用 play() 再 pause() 預熱，部分 WebView 會把隱藏影片卡住。
+            [els.videoRun, els.videoDeparture].forEach(video => {
+                try { video.load(); } catch (e) {}
+            });
+
+            // 播放音樂
+            els.audioBgm.volume = 0.5;
+            els.audioBgm.play().then(() => {
+                isMusicPlaying = true;
+                els.musicIcon.innerText = '🎵';
+            }).catch(e => console.log("BGM 自動播放被擋", e));
+            
+            els.btnMusic.classList.remove('hidden');
+            els.btnSkip.classList.remove('hidden');
+            
+            // 隱藏封面 UI
+            els.startScreen.style.opacity = '0';
+            await wait(1000);
+            if (introStage !== 'firstSubtitles' || hasEnteredGame) return;
+            els.startScreen.classList.add('hidden');
+
+            await playFirstIntroSubtitles();
+        }
+
+        async function playFirstIntroSubtitles() {
+            if (hasEnteredGame) return;
+            introStage = 'firstSubtitles';
+            setupIntroSubtitleLayer({ darkBackdrop: true });
+            hideIntroSubtitleText();
+            
+            await wait(500);
+            if (introStage !== 'firstSubtitles' || hasEnteredGame) return;
+            
+            const introTexts = [
+                "傳說，青丘之國是一個人類與白靈狐共存的仙境",
+                "每隻小白狐成年時都會與「靈魂旅伴」去歷練修行<br>並看看自己未來的模樣...",
+                "歷練會依照內心改變樣貌，路途充滿未知。",
+                "有人進入紅塵，有人一步登仙，有人則一無所獲。",
+                "主角，是一隻剛修行滿百年的小白狐。她還沒有完成歷練。",
+                "而你，將作為她的「靈魂旅伴」，陪伴她完成最後一次歷練。",
+                "現在...一起醒來吧..."
+            ];
+
+            for (let text of introTexts) {
+                if (introStage !== 'firstSubtitles' || hasEnteredGame) return;
+                els.subText.innerHTML = text;
+                els.subText.style.opacity = '1';
+                await wait(3500);
+                
+                if (introStage !== 'firstSubtitles' || hasEnteredGame) return;
+                els.subText.style.opacity = '0';
+                await wait(1000);
+            }
+
+            if (introStage !== 'firstSubtitles' || hasEnteredGame) return;
+            playRunVideoStage();
+        }
+
+        async function playRunVideoStage() {
+            if (hasEnteredGame) return;
+            introStage = 'runVideo';
+            hideIntroSubtitleText();
+            els.subtitles.classList.add('hidden');
+            els.subtitles.classList.remove('bg-black');
+            els.subtitles.classList.add('bg-transparent');
+            els.startScreen.classList.add('hidden');
+            
+            // 切換為奔跑影片
+            els.videoContainer.classList.remove('hidden');
+            els.videoContainer.style.opacity = '1';
+            els.videoStart.style.opacity = '0';
+            els.videoRun.classList.remove('hidden');
+            els.videoRun.style.opacity = '0';
+            try { els.videoRun.currentTime = 0; } catch (e) {}
+            
+            await wait(50);
+            if (introStage !== 'runVideo' || hasEnteredGame) return;
+            els.videoRun.style.opacity = '1';
+            await safePlayVideo(els.videoRun, "起跑影片");
+            
+            await waitForVideoEnd(els.videoRun, 8000);
+            if (introStage !== 'runVideo' || hasEnteredGame) return;
+
+            playSecondIntroSubtitles();
+        }
+
+        async function playSecondIntroSubtitles() {
+            if (hasEnteredGame) return;
+            introStage = 'secondSubtitles';
+            hideIntroSubtitleText();
+
+            // 隱藏影片層，正式進入漆黑的 Canvas 層。第二段字幕不加黑色背景框。
+            els.videoContainer.style.opacity = '0';
+            await wait(1000);
+            if (introStage !== 'secondSubtitles' || hasEnteredGame) return;
+            els.videoContainer.classList.add('hidden');
+            try { els.videoRun.pause(); } catch (e) {}
+            
+            els.gameScreen.classList.remove('hidden');
+            gameState.canvasTheme = 'awakening';
+            initCanvasTheme();
+            
+            await wait(50);
+            if (introStage !== 'secondSubtitles' || hasEnteredGame) return;
+            els.gameScreen.style.opacity = '1';
+
+            // 第二段字幕：只保留文字，不使用 bg-black 或任何背板
+            setupIntroSubtitleLayer({ darkBackdrop: false });
+
+            const awakeningTexts = [
+                "(你感覺自己的意識從一片混沌中漸漸甦醒，眼前不是熟悉的繁華世界，而是一片散發著淡淡微光的神秘森林。)",
+                "(在你面前，一隻雪白毛茸茸的小白狐在草地上，大大的眼睛滿是好奇地打量著你。)",
+                "小白狐：「……唔？你……醒過來了？」",
+                "(嗯...?  我竟然可以聽懂牠的話。)",
+                "小白狐：「好神奇的氣息……你不是森林裡的生靈，也沒有實體，倒像是……與我的靈魂繫在一起的『旅伴』？」",
+                "小白狐：「...你，感覺還好嗎？」"
+            ];
+
+            for (let text of awakeningTexts) {
+                if (introStage !== 'secondSubtitles' || hasEnteredGame) return;
+                els.subText.innerHTML = text;
+                els.subText.style.opacity = '1';
+                await wait(4500);
+                
+                if (introStage !== 'secondSubtitles' || hasEnteredGame) return;
+                els.subText.style.opacity = '0';
+                await wait(1000);
+            }
+
+            if (introStage !== 'secondSubtitles' || hasEnteredGame) return;
+            enterGame();
+        }
+
+        // 保留舊函式名稱，避免其他地方若有呼叫 showAwakening 時失效
+        async function showAwakening() {
+            playSecondIntroSubtitles();
+        }
+
+        function skipIntro() {
+            if (hasEnteredGame) return;
+
+            const stage = introStage;
+            abortIntro();
+
+            if (stage === 'firstSubtitles') {
+                // 第一段字幕略過 -> 進入奔跑影片
+                playRunVideoStage();
+            } else if (stage === 'runVideo') {
+                // 奔跑影片略過 -> 進入第二段字幕
+                playSecondIntroSubtitles();
+            } else if (stage === 'secondSubtitles') {
+                // 第二段字幕略過 -> 正式進入測驗
+                enterGame();
+            } else {
+                enterGame();
+            }
+        }
+
+        function enterGame() {
+            if (hasEnteredGame) return;
+            hasEnteredGame = true;
+            introStage = 'done';
+            abortIntro();
+
+            // 清理 UI
+            els.btnSkip.classList.add('hidden');
+            els.subtitles.classList.add('hidden');
+            els.subtitles.classList.remove('bg-black');
+            els.subtitles.classList.add('bg-transparent');
+            hideIntroSubtitleText();
+            
+            // 確保影片層被隱藏
+            stopIntroVideos({ reset: false });
+            els.videoContainer.classList.add('hidden');
+            els.videoContainer.style.opacity = '0';
+            
+            // 顯示遊戲層
+            els.gameScreen.classList.remove('hidden');
+            
+            // 強制重繪 (Force Reflow) 確保畫面不會卡黑屏
+            void els.gameScreen.offsetWidth; 
+            els.gameScreen.style.opacity = '1';
+            
+            // 確保 Canvas 主題正確
+            if(gameState.canvasTheme !== 'awakening') {
+                gameState.canvasTheme = 'awakening';
+                initCanvasTheme();
+            }
+
+            renderScene('awakening_q1');
+        }
+
+        const svgs = {
+            fox: `<svg viewBox="0 0 100 100" fill="none" stroke="url(#foxGrad)" stroke-width="2" class="w-full h-full drop-shadow-2xl"><defs><linearGradient id="foxGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff" /><stop offset="100%" stop-color="#a8b1ff" /></linearGradient></defs><path d="M50 20 C60 30, 70 25, 75 40 C80 55, 70 70, 50 80 C30 70, 20 55, 25 40 C30 25, 40 30, 50 20 Z" fill="rgba(255,255,255,0.05)"/><path d="M40 45 Q50 60 60 45" stroke="white" stroke-width="1.5" stroke-linecap="round"/><circle cx="42" cy="40" r="2" fill="white"/><circle cx="58" cy="40" r="2" fill="white"/><path d="M50 80 Q60 90 80 85 Q90 70 75 60" stroke-width="1" stroke-dasharray="2 2"/></svg>`,
+            item1: `<svg viewBox="0 0 100 100" fill="none" stroke="#4ade80" stroke-width="2" class="w-full h-full"><path d="M50 20 C20 40, 30 80, 50 90 C70 80, 80 40, 50 20 Z" fill="rgba(74,222,128,0.2)"/><path d="M50 20 L50 90 M30 55 Q50 60 50 40 M70 55 Q50 60 50 40"/></svg>`, 
+            item2: `<svg viewBox="0 0 100 100" fill="none" stroke="#94a3b8" stroke-width="2" class="w-full h-full"><path d="M40 80 L60 80 L55 60 L45 60 Z" fill="#475569"/><path d="M45 60 L50 10 L55 60 Z" fill="rgba(148,163,184,0.3)" stroke="#e2e8f0"/></svg>`, 
+            item3: `<svg viewBox="0 0 100 100" fill="none" stroke="#f87171" stroke-width="2" class="w-full h-full"><path d="M30 40 Q50 20 70 40 C80 60, 70 80, 50 90 C30 80, 20 60, 30 40 Z" fill="rgba(248,113,113,0.2)"/><path d="M40 30 C50 10, 50 10, 60 30" stroke="#facc15"/><circle cx="50" cy="60" r="8" fill="#facc15" stroke="none"/></svg>`, 
+            item4: `<svg viewBox="0 0 100 100" fill="none" stroke="#c084fc" stroke-width="2" class="w-full h-full"><path d="M20 40 C20 10, 80 10, 80 40 C80 70, 50 90, 50 90 C50 90, 20 70, 20 40 Z" fill="rgba(192,132,252,0.1)"/><path d="M35 45 Q40 40 45 45 M75 45 Q70 40 65 45" stroke-width="3"/><path d="M50 70 Q60 60 70 70"/></svg>`, 
+            item5: `<svg viewBox="0 0 100 100" fill="none" stroke="#67e8f9" stroke-width="1.5" class="w-full h-full"><path d="M50 50 C30 30, 20 50, 50 80 C80 50, 70 30, 50 50 Z" fill="rgba(103,232,249,0.2)"/><path d="M50 50 C20 20, 10 60, 50 80 C90 60, 80 20, 50 50 Z"/></svg>`, 
+            item6: `<svg viewBox="0 0 100 100" fill="none" stroke="#fde047" stroke-width="2" class="w-full h-full"><circle cx="50" cy="50" r="30" fill="rgba(253,224,71,0.1)"/><path d="M50 20 L40 50 L55 50 L50 80 L60 50 L45 50 Z" fill="#fde047" stroke="none"/></svg>`, 
+            goddess: `<svg viewBox="0 0 100 100" fill="none" stroke="url(#godGrad)" stroke-width="1.5" class="w-full h-full"><defs><linearGradient id="godGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fef08a" /><stop offset="100%" stop-color="#fff" /></linearGradient></defs><circle cx="50" cy="40" r="15" fill="rgba(255,255,255,0.05)"/><path d="M50 55 C30 55, 20 80, 20 90 L80 90 C80 80, 70 55, 50 55 Z" fill="rgba(255,255,255,0.1)"/><path d="M50 20 Q50 10 50 5" stroke="#fef08a"/><path d="M20 90 Q5 60 25 45 M80 90 Q95 60 75 45 M30 90 Q15 50 35 35 M70 90 Q85 50 65 35" stroke="rgba(255,255,255,0.4)" stroke-width="2"/></svg>`
+        };
+
+        const itemsDict = {
+            'item1': { id: 'item1', name: '紅絲琉璃珠', svg: svgs.item1 },
+            'item2': { id: 'item2', name: '千狐辟邪鏡', svg: svgs.item2 },
+            'item3': { id: 'item3', name: '金仙貴人珮', svg: svgs.item3 },
+            'item4': { id: 'item4', name: '百媚親和梳', svg: svgs.item4 },
+            'item5': { id: 'item5', name: '靈仙雪蓮簪', svg: svgs.item5 },
+            'item6': { id: 'item6', name: '天狐應驗符', svg: svgs.item6 }
+        };
+
+        const storyData = {
+            awakening_q1: {
+                title: '初次相遇',
+                text: '小白狐睜著水靈靈的大眼睛看著你，等待著你的回應。你的第一次回應，將成為你們之間默契與信任的起點。',
+                svg: `<video autoplay loop muted playsinline class="w-full h-full object-cover rounded-2xl border-2 border-white/40 shadow-[0_0_30px_rgba(255,255,255,0.4)]">
+                        <source src="https://cdn.jsdelivr.net/gh/banana78973/smallfoxgame@main/%E7%9B%B8%E8%AD%98.mp4" type="video/mp4">
+                        <source src="https://raw.githubusercontent.com/banana78973/smallfoxgame/main/%E7%9B%B8%E8%AD%98.mp4" type="video/mp4">
+                      </video>`, 
+                theme: 'awakening',
+                choices: [
+                    { text: '別怕，我雖然有點迷茫，但感覺到你的氣息很溫暖。很高興遇見你，小傢伙。', score: 'A', val: 1, next: 'departure_transition' },
+                    { text: '靈魂旅伴？看來我是以某種意識形態與你綁定了。先別急，我們需要釐清現在的狀況與目標。', score: 'B', val: 1, next: 'departure_transition' },
+                    { text: '哇，一睜眼就變成靈魂狀態，還附贈一隻可愛的小白狐？這展開挺有意思的，隨遇而安吧！', score: 'C', val: 1, next: 'departure_transition' }
+                ]
+            },
+            prologue: {
+                title: '序章：青丘啟程',
+                text: '兩人一路前行，面前就是如迷宮般的青丘外圍森林，她有些緊張地看著虛空中的你：「我們該怎麼走呢？」',
+                svg: svgs.fox, theme: 'forest',
+                choices: [
+                    { text: '順著直覺，跟隨森林裡散發溫暖花香的小徑前行吧。', score: 'A', val: 1, next: 'ch1_fork' },
+                    { text: '躍上樹冠，居高臨下，尋找一條最理智、最有效率的直線捷徑。', score: 'B', val: 1, next: 'ch1_fork' },
+                    { text: '化為殘影，在林間盲目奔跑，享受風吹過毛髮的自由速度！', score: 'C', val: 1, next: 'ch1_fork' }
+                ]
+            },
+            ch1_fork: {
+                title: '第一章：迷霧森林與抉擇',
+                text: '森林逐漸被流動的白色霧氣吞噬。前方出現兩條岔路，一邊傳出沙沙異響（左），另一邊閃爍著微弱水光（右）。',
+                svg: svgs.fox, theme: 'forest',
+                choices: [
+                    { text: '前往左路：巨樹樹洞', next: 'ch1_left' },
+                    { text: '前往右路：螢光水潭', next: 'ch1_right' }
+                ]
+            },
+            ch1_left: {
+                title: '支線：巨樹樹洞',
+                text: '小白狐看見一隻被藤蔓困住、急得吱吱叫的小松鼠。',
+                svg: svgs.fox, theme: 'forest',
+                choices: [
+                    { text: '幫忙：「我們幫幫牠吧。」', score: 'A', val: 2, item: itemsDict.item1, next: 'ch2_main' },
+                    { text: '不求回報：「救下牠，但不需要牠的報答，我們瀟灑前行。」', score: 'C', val: 2, next: 'ch2_main' },
+                    { text: '離開：「這是大自然的物競天擇，我們不要干涉，走吧。」', score: 'B', val: 2, next: 'ch2_main' }
+                ]
+            },
+            ch1_right: {
+                title: '支線：螢光水潭',
+                text: '潭底靜靜躺著一柄古老匕首，但周圍圍繞著守護毒蜂。',
+                svg: svgs.fox, theme: 'forest',
+                choices: [
+                    { text: '強取：「用狐火逼退毒蜂，直接拿走！」', score: 'B', val: 2, item: itemsDict.item2, next: 'ch2_main' },
+                    { text: '智取：「聲東擊西，用幻術把毒蜂引開再拿。」', score: 'A', val: 2, item: itemsDict.item2, next: 'ch2_main' },
+                    { text: '不節外生枝：「沒必要為了未知的武器而冒險，繞道吧。」', score: 'C', val: 2, next: 'ch2_main' }
+                ]
+            },
+            ch2_main: {
+                title: '第二章：紅塵市集',
+                text: '背景轉為深藍色夜空，無數紅燈籠懸掛。<br><br>一個哭泣的孩童弄丟了買藥錢，而古董店老闆正盯著小白狐的皮毛。',
+                svg: svgs.fox, theme: 'town',
+                choices: [
+                    { text: '捨己為人：拔下護身狐毛換取銀兩幫他。', score: 'A', val: 2, next: 'ch2_fork' },
+                    { text: '執法正義：發現小偷並暗中施法將錢奪回。', score: 'B', val: 2, next: 'ch2_fork' },
+                    { text: '機智應對：用幻術變出銀兩給孩子先解燃眉之急。', score: 'C', val: 2, next: 'ch2_fork' }
+                ]
+            },
+            ch2_fork: {
+                title: '突發危機！',
+                text: '古董店老闆突然召喚金色「捕妖網」當頭罩下！',
+                svg: svgs.fox, theme: 'town',
+                choices: [
+                    { text: '逃向左路：土地公廟', next: 'ch2_left' },
+                    { text: '逃向右路：黑市酒館', next: 'ch2_right' }
+                ]
+            },
+            ch2_left: {
+                title: '支線：土地公廟',
+                text: '衝入小廟，土地公神像矗立。',
+                svg: svgs.fox, theme: 'town',
+                choices: [
+                    { text: '接受庇護：向土地公神像誠心上香。', score: 'B', val: 2, item: itemsDict.item3, next: 'ch3_main' },
+                    { text: '單純避風頭：等捕妖網過去後直接離開。', score: 'C', val: 2, next: 'ch3_main' },
+                    { text: '拒絕：不想欠神明人情，自己破窗逃走。', score: 'A', val: 2, next: 'ch3_main' }
+                ]
+            },
+            ch2_right: {
+                title: '支線：黑市酒館',
+                text: '貓妖掌櫃笑吟吟地看著你們。',
+                svg: svgs.fox, theme: 'town',
+                choices: [
+                    { text: '交易：答應給貓妖透露青丘的消息換取掩護。', score: 'A', val: 2, item: itemsDict.item4, next: 'ch3_main' },
+                    { text: '拒絕：覺得黑市不安全，轉身衝向小巷。', score: 'B', val: 2, next: 'ch3_main' },
+                    { text: '搗蛋：在酒館引起騷動，並趁勢離開。', score: 'C', val: 2, next: 'ch3_main' }
+                ]
+            },
+            ch3_main: {
+                title: '第三章：蓬萊仙途',
+                text: '風雪中出現了直擊心靈的幻象。',
+                svg: svgs.fox, theme: 'storm',
+                choices: [
+                    { text: '執著紅塵：幻影是逝去的故人，貪戀片刻溫存。', score: 'A', val: 10, next: 'ch3_meet' },
+                    { text: '追求天道：幻影是神座，你堅定擦身而過。', score: 'B', val: 10, next: 'ch3_meet' },
+                    { text: '渴望自由：幻影是天條規矩，揮拳擊碎這面虛偽的牆。', score: 'C', val: 10, next: 'ch3_meet' }
+                ]
+            },
+            ch3_meet: {
+                title: '白雪靈仙姑的考核',
+                text: '風雪驟平，手執團扇的白雪靈仙姑現身：「成仙需斬斷塵緣。小白狐，與你緊緊相依的這位旅伴，你真的捨得割捨嗎？」<br><br>仙姑化為白雪，留下一片瓊花瓣。前方出現雙橋。',
+                svg: svgs.goddess, theme: 'storm',
+                choices: [
+                    { text: '走向左橋：渡生橋', next: 'ch3_left' },
+                    { text: '走向右橋：破陣橋', next: 'ch3_right' }
+                ]
+            },
+            ch3_left: {
+                title: '支線：渡生橋',
+                text: '橋頭坐著一位口渴的擺渡仙人。',
+                svg: svgs.fox, theme: 'storm',
+                choices: [
+                    { text: '施捨：將珍貴的靈泉水給口渴的仙人喝。', score: 'A', val: 2, item: itemsDict.item5, next: 'ch4_final' },
+                    { text: '搭話：請他帶自己過橋。', score: 'C', val: 2, next: 'ch4_final' },
+                    { text: '冷漠：不予理會，自顧自地走過去。', score: 'B', val: 2, next: 'ch4_final' }
+                ]
+            },
+            ch3_right: {
+                title: '支線：破陣橋',
+                text: '橋上布滿機關雷電，核心是一顆閃耀的能源。',
+                svg: svgs.fox, theme: 'storm',
+                choices: [
+                    { text: '破陣：憑藉身法強行破陣，摘下核心。', score: 'A', val: 2, item: itemsDict.item6, next: 'ch4_final' },
+                    { text: '思考：遵循規則，憑藉觀察躲避開機關。', score: 'B', val: 2, next: 'ch4_final' },
+                    { text: '繞開：尋找其他安全的遠路繞過去。', score: 'C', val: 2, next: 'ch4_final' }
+                ]
+            },
+            ch4_final: {
+                title: '第四章：終極綺禮',
+                text: '蓬萊仙人現身，賜予法寶選擇。滿天星海匯聚成巨大的漩渦，根據你的靈力共鳴轉動著...',
+                svg: svgs.goddess, theme: 'vortex',
+                choices: [
+                    { text: '選擇「絳雪琉璃盞」', score: 'A', val: 100, next: 'result' },
+                    { text: '選擇「太虛九天印」', score: 'B', val: 100, next: 'result' },
+                    { text: '選擇「逍遙青玉笛」', score: 'C', val: 100, next: 'result' }
+                ]
+            }
+        };
+
+        function showToast(msg) {
+            els.toastMsg.innerText = msg;
+            els.toast.classList.add('show');
+            setTimeout(() => els.toast.classList.remove('show'), 2500);
+        }
+
+        function renderScene(nodeId) {
+            els.app.classList.remove('fade-in');
+            els.app.classList.add('fade-out');
+
+            setTimeout(() => {
+                if (nodeId.startsWith('result')) {
+                    renderResult(nodeId === 'result_secret');
+                } else {
+                    const scene = storyData[nodeId];
+                    
+                    if(gameState.canvasTheme !== scene.theme) {
+                        gameState.canvasTheme = scene.theme;
+                        initCanvasTheme();
+                    }
+
+                    if (nodeId === 'awakening_q1') {
+                        els.visual.className = 'w-64 h-40 md:w-80 md:h-56 mb-8 flex items-center justify-center floating svg-glow text-white/80';
+                    } else {
+                        els.visual.className = 'w-40 h-40 md:w-56 md:h-56 mb-8 flex items-center justify-center floating svg-glow text-white/80';
+                    }
+
+                    els.title.innerHTML = scene.title;
+                    els.text.innerHTML = scene.text;
+                    els.visual.innerHTML = scene.svg;
+                    els.choices.innerHTML = '';
+
+                    let choicesToRender = [...scene.choices];
+                    if (nodeId === 'ch4_final' && gameState.inventory.length >= 3) {
+                        choicesToRender.push({
+                            text: '🌟 我都不選。我們要追隨白雪靈仙姑，走我們自己的路！',
+                            next: 'result_secret'
+                        });
+                    }
+
+                    choicesToRender.forEach(choice => {
+                        const btn = document.createElement('button');
+                        if (choice.next === 'result_secret') {
+                            btn.className = 'btn-choice w-full py-4 px-6 rounded-xl text-left text-sm md:text-base tracking-widest text-white border-white/50 bg-white/10 svg-glow mt-4';
+                        } else {
+                            btn.className = 'btn-choice w-full py-4 px-6 rounded-xl text-left text-sm md:text-base tracking-widest text-slate-200';
+                        }
+                        btn.innerHTML = `<span class="text-yellow-400 mr-2">✧</span> ${choice.text}`;
+                        btn.onclick = () => handleChoice(choice);
+                        els.choices.appendChild(btn);
+                    });
+                }
+                
+                els.app.classList.remove('fade-out');
+                els.app.classList.add('fade-in');
+            }, 800);
+        }
+
+        function handleChoice(choice) {
+            if (choice.score) {
+                gameState.scores[choice.score] += choice.val;
+            }
+            if (choice.item) {
+                gameState.inventory.push(choice.item);
+                const slot = document.createElement('div');
+                slot.className = 'item-slot glass-panel p-1 rounded border-yellow-500/50';
+                slot.innerHTML = choice.item.svg;
+                els.inventory.appendChild(slot);
+                
+                showToast(`獲得道具：${choice.item.name}`);
+                if(gameState.canvasTheme === 'vortex') initCanvasTheme(); 
+            }
+            
+            if (choice.next === 'departure_transition') {
+                playDepartureTransition(choice.score);
+            } else {
+                renderScene(choice.next);
+            }
+        }
+
+        async function playDepartureTransition(scoreType) {
+            els.app.classList.remove('fade-in');
+            els.app.classList.add('fade-out');
+
+            await wait(800);
+
+            const gameSubtitles = document.getElementById('game-subtitles');
+            const gameSubText = document.getElementById('game-subtitle-text');
+
+            gameSubtitles.classList.remove('hidden', 'bg-black');
+            gameSubtitles.classList.add('bg-transparent');
+            
+            let responseText = "";
+            if (scoreType === 'A') {
+                responseText = "小白狐眼睛一亮，緊張的身體放鬆了下來，用腦袋輕輕蹭了蹭你的靈魂微光：「嘿嘿，你人真好！有你在身邊，感覺心裡暖暖的～」";
+            } else if (scoreType === 'B') {
+                responseText = "小白狐連忙點點頭，眼神變得認真起來：「嗯！你說得對，族長說過遇事不能慌張！有你在幫我分析，感覺踏實多了。」";
+            } else if (scoreType === 'C') {
+                responseText = "小白狐先是一愣，隨後被你的樂觀感染，高興地甩了甩毛茸茸的尾巴：「哈哈哈！你的心可真大～不過我也喜歡隨性一點！那我們就一起探索吧！」";
+            }
+
+            gameSubText.innerHTML = responseText;
+            gameSubText.style.opacity = '1';
+            await wait(4500);
+
+            gameSubText.style.opacity = '0';
+            await wait(1000);
+
+            gameSubtitles.classList.remove('bg-black');
+            gameSubtitles.classList.add('bg-transparent');
+            
+            els.videoDeparture.classList.remove('hidden');
+            try { els.videoDeparture.currentTime = 0; } catch (e) {} // 確保從頭播放
+            await wait(50);
+            els.videoDeparture.style.opacity = '1';
+            
+            await safePlayVideo(els.videoDeparture, "過場影片");
+
+            await wait(800);
+
+            gameSubText.innerHTML = "小白狐：「既然天意讓你成為我的靈魂旅伴，接下來的冒險，就請你多多指教囉！準備好了嗎？我們這就出發吧！」";
+            gameSubText.style.opacity = '1';
+            
+            // 智慧監聽影片進度，提早 1.2 秒啟動淡出
+            await new Promise(resolve => {
+                const checkTime = () => {
+                    // 如果影片有正確的總長度，且當前時間大於等於 (總長度 - 1.2秒)
+                    if (els.videoDeparture.duration > 0 && els.videoDeparture.currentTime >= els.videoDeparture.duration - 1.2) {
+                        els.videoDeparture.removeEventListener('timeupdate', checkTime);
+                        resolve();
+                    }
+                };
+                
+                // 每當影片播放進度更新時，檢查一次
+                els.videoDeparture.addEventListener('timeupdate', checkTime);
+                
+                // 加入 15 秒防呆機制，避免某些瀏覽器抓不到時間導致卡死
+                setTimeout(() => {
+                    els.videoDeparture.removeEventListener('timeupdate', checkTime);
+                    resolve();
+                }, 15000);
+            });
+
+            // 啟動優雅淡出
+            gameSubText.style.opacity = '0';
+            els.videoDeparture.style.opacity = '0';
+            
+            // 等待 1 秒讓 CSS 漸隱動畫跑完 (對應 transition duration 1000ms)
+            await wait(1000);
+
+            gameSubtitles.classList.add('hidden');
+            els.videoDeparture.classList.add('hidden');
+            els.videoDeparture.pause();
+
+            renderScene('prologue');
+        }
+
+        function renderResult(isSecret) {
+            let resultData = {};
+            const itemsCount = gameState.inventory.length;
+
+            if (isSecret) {
+                gameState.canvasTheme = 'perfectD';
+                initCanvasTheme();
+                resultData = {
+                    title: '隱藏完美結局：白仙伴隨 ─ 永恆的靈魂旅伴',
+                    desc: '「你不願讓她承受天界的孤冷，也不願她在凡間經歷輪迴。你們轉身，奔向了白雪靈仙姑的方向。」<br><br>看破天道，方得真道。白雪靈仙姑慈悲一笑。小白狐化為聖白狐，而你的靈魂化為靈契融入她額間。<br>從此仙姑身旁多了你們，一生一世，指引紅塵迷途人。只要有你在，這片森林便永遠溫暖。',
+                    blessing: '仙姑賜福：【圓滿/永恆庇護】',
+                    code: '專屬結緣碼：FOX-TRUE-END'
+                };
+            } else {
+                let maxScore = Math.max(gameState.scores.A, gameState.scores.B, gameState.scores.C);
+                let resultType = maxScore === gameState.scores.A ? 'A' : (maxScore === gameState.scores.B ? 'B' : 'C');
+                let isGoodEnd = itemsCount > 0;
+
+                if (resultType === 'A') {
+                    gameState.canvasTheme = isGoodEnd ? 'perfectA' : 'forest';
+                    resultData = {
+                        title: isGoodEnd ? '結局：紅塵 · 有情聖狐' : '遺憾結局：紅塵留恨',
+                        desc: isGoodEnd 
+                            ? '小白狐帶著琉璃盞回到人間，用道具造福生靈。每當深夜看著萬家燈火，她都會對著夜空微笑，因為她知道你一直看著她。' 
+                            : '她回到了人間，但因缺乏防身道具，只能看著生老病死而無能為力。她依然想念你，卻有些遺憾沒能為你留下更多證明。',
+                        blessing: isGoodEnd ? '狐仙賜福：【桃花/人緣】' : '無賜福',
+                        code: isGoodEnd ? '專屬結緣碼：FOX-LOVE-520' : '請重新挑戰收集道具'
+                    };
+                } else if (resultType === 'B') {
+                    gameState.canvasTheme = isGoodEnd ? 'perfectB' : 'storm';
+                    resultData = {
+                        title: isGoodEnd ? '結局：天仙 · 九天玄狐' : '遺憾結局：冷清仙途',
+                        desc: isGoodEnd 
+                            ? '她戰勝了所有軟弱，登臨天界至高王座。她成為了孤高而強大的玄狐真仙，雖然威嚴，但她腰間依然掛著你們旅途中獲得的信物。' 
+                            : '她勉強登仙，卻只能在冷清的天宮角落擔任抄寫天條的小仙。在漫長永生中，只能抱著回憶，懷念曾經溫暖的旅伴。',
+                        blessing: isGoodEnd ? '狐仙賜福：【事業/貴人】' : '無賜福',
+                        code: isGoodEnd ? '專屬結緣碼：FOX-WORK-888' : '請重新挑戰收集道具'
+                    };
+                } else {
+                    gameState.canvasTheme = isGoodEnd ? 'perfectC' : 'town';
+                    resultData = {
+                        title: isGoodEnd ? '結局：散仙 · 逍遙散狐' : '遺憾結局：狼狽流浪',
+                        desc: isGoodEnd 
+                            ? '她拿起了青玉笛，大笑三聲，帶著一路上收集的奇珍異寶，今天去東海鬥酒，明天去魔界下棋，活成了三界最灑脫的傳奇。' 
+                            : '她拒絕了成仙，但也因為沒有防身道具，在三界流浪時經常遭到神魔的驅趕。雖然自由，卻也過得有些狼狽與居無定所。',
+                        blessing: isGoodEnd ? '狐仙賜福：【自由/魅力】' : '無賜福',
+                        code: isGoodEnd ? '專屬結緣碼：FOX-FREE-999' : '請重新挑戰收集道具'
+                    };
+                }
+                initCanvasTheme();
+            }
+
+            els.visual.innerHTML = svgs.goddess;
+            els.title.innerHTML = resultData.title;
+            els.title.className = "text-2xl md:text-3xl font-bold mb-6 text-yellow-300 glow-gold tracking-widest";
+            
+            els.text.innerHTML = `
+                ${resultData.desc}
+                <div class="mt-8 p-4 border border-yellow-500/30 bg-yellow-500/10 rounded-lg inline-block">
+                    <p class="text-yellow-200 font-bold mb-2">${resultData.blessing}</p>
+                    <p class="text-xl tracking-wider text-white font-mono bg-black/30 px-4 py-2 rounded">${resultData.code}</p>
+                </div>
+            `;
+
+            els.choices.innerHTML = `
+                <button onclick="window.location.reload()" class="btn-choice w-full py-4 px-6 rounded-xl text-center text-base tracking-widest text-yellow-100 font-bold">
+                    返回青丘 (重新測驗)
+                </button>
+                <button onclick="alert('導向財神小舖官網！')" class="mt-2 w-full py-4 px-6 rounded-xl text-center text-base tracking-widest bg-yellow-600/80 hover:bg-yellow-500 text-white transition-colors">
+                    前往挑選專屬法寶
+                </button>
+            `;
+        }
+
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(theme, index) {
+                this.theme = theme;
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.resetProps(theme, index);
+            }
+
+            resetProps(theme, index) {
+                if (theme === 'awakening') {
+                    this.size = Math.random() * 2 + 0.5;
+                    this.angle = Math.random() * Math.PI * 2;
+                    this.radius = Math.random() * Math.min(canvas.width, canvas.height);
+                    this.speed = Math.random() * 0.005 + 0.002;
+                    this.color = Math.random() > 0.5 ? 'rgba(255, 255, 255,' : 'rgba(250, 204, 21,'; // 銀金
+                } else if (theme === 'forest') {
+                    this.size = Math.random() * 3 + 1;
+                    this.speedX = Math.random() * 1 - 0.5;
+                    this.speedY = Math.random() * 1 - 0.5;
+                    this.color = 'rgba(134, 239, 172,'; // 綠色螢火
+                } else if (theme === 'town') {
+                    this.size = Math.random() * 5 + 5;
+                    this.speedX = 0;
+                    this.speedY = Math.random() * -1 - 0.5;
+                    this.color = 'rgba(248, 113, 113,'; // 紅色燈籠
+                } else if (theme === 'storm') {
+                    this.size = Math.random() * 1.5 + 0.5;
+                    this.speedX = Math.random() * 5 + 2;
+                    this.speedY = Math.random() * 2 + 1;
+                    this.color = 'rgba(203, 213, 225,'; // 白色風雪
+                } else if (theme === 'vortex') {
+                    this.angle = Math.random() * Math.PI * 2;
+                    this.radius = Math.random() * Math.min(canvas.width, canvas.height);
+                    let itemBoost = gameState.inventory.length * 0.01;
+                    this.speed = Math.random() * 0.01 + 0.01 + itemBoost;
+                    this.size = Math.random() * 2 + 1;
+                    this.color = 'rgba(255, 255, 255,'; 
+                } else if (theme === 'perfectD') { // 瓊花
+                    this.size = Math.random() * 4 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * 3 + 2;
+                    this.color = 'rgba(255, 255, 255,';
+                }
+                this.opacity = Math.random() * 0.5 + 0.2;
+            }
+
+            update() {
+                if (this.theme === 'awakening') {
+                    this.angle += this.speed;
+                    this.radius -= 0.5;
+                    if(this.radius < 0) this.radius = Math.max(canvas.width, canvas.height) / 2;
+                    this.x = canvas.width/2 + Math.cos(this.angle) * this.radius;
+                    this.y = canvas.height/2 + Math.sin(this.angle) * this.radius;
+                } else if (this.theme === 'vortex') {
+                    this.angle += this.speed;
+                    this.radius -= (0.5 + gameState.inventory.length * 0.2);
+                    if(this.radius < 0) this.radius = Math.min(canvas.width, canvas.height);
+                    this.x = canvas.width/2 + Math.cos(this.angle) * this.radius;
+                    this.y = canvas.height/2 + Math.sin(this.angle) * this.radius;
+                } else {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x > canvas.width || this.x < 0 || this.y > canvas.height || this.y < 0) {
+                        if(this.theme === 'town' || this.theme === 'perfectD') this.y = this.theme === 'town' ? canvas.height : -10;
+                        else this.y = Math.random() * canvas.height;
+                        this.x = Math.random() * canvas.width;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                if (this.theme === 'town') {
+                    ctx.rect(this.x, this.y, this.size, this.size * 1.2);
+                } else {
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                }
+                ctx.fillStyle = this.color + this.opacity + ')';
+                ctx.fill();
+                ctx.shadowBlur = this.theme === 'storm' ? 0 : 10;
+                ctx.shadowColor = this.color + '0.8)';
+            }
+        }
+
+        function initCanvasTheme() {
+            let count = 100;
+            if (gameState.canvasTheme === 'vortex') count = 150 + (gameState.inventory.length * 50);
+            if (gameState.canvasTheme === 'perfectD') count = 200;
+            
+            particles = [];
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(gameState.canvasTheme, i));
+            }
+        }
+
+        function animateCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let bgColors = {
+                awakening: ['#000000', '#0a0a1a'],
+                forest: ['#051a05', '#020a02'],
+                town: ['#1a0505', '#0a0202'],
+                storm: ['#0f172a', '#020617'],
+                vortex: ['#000000', '#1e1b4b'],
+                perfectA: ['#2e0505', '#1a0202'], 
+                perfectB: ['#1e1b4b', '#000000'], 
+                perfectC: ['#064e3b', '#022c22'], 
+                perfectD: ['#f1f5f9', '#94a3b8']  
+            };
+
+            let colors = bgColors[gameState.canvasTheme] || bgColors.awakening;
+            let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, colors[0]);
+            gradient.addColorStop(1, colors[1]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState.canvasTheme === 'storm' && Math.random() > 0.98) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateCanvas);
+        }
+
+        animateCanvas();
+    </script>
+</body>
+</html>
